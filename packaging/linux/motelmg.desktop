@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=MotelMG
+GenericName=Motel Management
+Comment=Reservations, front desk, billing, housekeeping and reports
+Exec=MotelMG
+Icon=motelmg
+Terminal=false
+Categories=Office;Finance;
+StartupWMClass=MotelMG

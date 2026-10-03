@@ -1,0 +1,2 @@
+# Runtime dependency (bundled into the installers; end users do not install it)
+PySide6-Essentials==6.11.2

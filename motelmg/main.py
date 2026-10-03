@@ -185,9 +185,61 @@ class AppController:
             log.info("Shut down cleanly")
 
 
+def self_test() -> int:
+    """Headless diagnostic: build a demo database in a temporary folder, render
+    every page and export a PDF. Used by CI on the packaged build and by
+    support staff ("MotelMG --self-test")."""
+    import tempfile
+
+    def say(*parts) -> None:  # windowed builds have no console attached
+        line = " ".join(str(p) for p in parts)
+        if sys.stdout is not None:
+            print(line, flush=True)
+        log.info("self-test: %s", line)
+
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    app = QApplication.instance() or QApplication(sys.argv[:1])
+    app.setStyle("Fusion")
+    from motelmg.reporting.documents import folio_html
+    from motelmg.services.context import AppContext
+    from motelmg.services.setup import DEFAULT_ROOM_TYPES, DEFAULT_ROOMS, SetupService
+    from motelmg.ui.dialogs.documents import export_pdf
+    from motelmg.ui.main_window import MainWindow
+    from motelmg.ui.theme import load_fonts, theme_manager
+    say(f"{APP_NAME} {__version__} self-test")
+    say("fonts:", load_fonts())
+    with tempfile.TemporaryDirectory() as tmp:
+        ctx = AppContext(os.path.join(tmp, "selftest.db"))
+        SetupService(ctx).complete({
+            "admin": {"full_name": "Self Test", "username": "selftest", "password": "SelfTest123",
+                      "confirm": "SelfTest123"},
+            "property": {"property.name": "Self-test Motel"}, "currency": "USD", "tax_rate": "8",
+            "room_types": DEFAULT_ROOM_TYPES, "rooms": DEFAULT_ROOMS, "demo": True})
+        say("database: ok,", ctx.db.scalar("SELECT COUNT(*) FROM reservations"), "reservations")
+        for name in ("light", "dark"):
+            theme_manager.apply(name)
+            window = MainWindow(ctx)
+            for key in window.pages:
+                window.navigate(key)
+                app.processEvents()
+            window._closing_for_signout = True
+            window.close()
+        say("ui: ok,", len(window.pages), "pages rendered in light and dark themes")
+        res = ctx.repo_res.search(statuses=["checked_out"], limit=1)[0]
+        pdf = export_pdf(ctx, folio_html(ctx, ctx.billing.folio(res.id)), os.path.join(tmp, "invoice.pdf"))
+        say("pdf: ok,", pdf.stat().st_size, "bytes")
+        ctx.settings.update({"backup.directory": os.path.join(tmp, "backups")})
+        backup = ctx.backups.backup_now("manual")
+        say("backup: ok,", backup.stat().st_size, "bytes")
+        ctx.close()
+    say("SELF-TEST PASSED")
+    return 0
+
+
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(prog=APP_NAME, description="Motel management system")
     parser.add_argument("--data-dir", help="store the database, logs and backups in this folder")
+    parser.add_argument("--self-test", action="store_true", help="run a headless diagnostic and exit")
     parser.add_argument("--version", action="version", version=f"{APP_NAME} {__version__}")
     args, _ = parser.parse_known_args(argv)
     return args
@@ -195,6 +247,8 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(sys.argv[1:] if argv is None else argv)
+    if args.self_test:
+        return self_test()
     if args.data_dir:
         paths.set_data_dir_override(args.data_dir)
     setup_logging()

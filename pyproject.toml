@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "motelmg"
+dynamic = ["version"]
+description = "MotelMG - desktop motel management system (reservations, front desk, billing, housekeeping, reports)"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["PySide6-Essentials>=6.6"]
+
+[project.gui-scripts]
+motelmg = "motelmg.main:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "motelmg.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["motelmg*"]
+
+[tool.setuptools.package-data]
+motelmg = ["resources/fonts/*", "resources/icons/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+qt_api = "pyside6"
+addopts = "-q"
+
+[tool.ruff]
+line-length = 130
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "B", "I"]
+ignore = ["E731", "B008", "B023", "B905", "I001"]

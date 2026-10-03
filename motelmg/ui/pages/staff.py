@@ -68,7 +68,7 @@ class StaffPage(Page):
                                                ("Delete role…", lambda: self._delete_role(r),
                                                 not r["is_system"])])
         rl.addWidget(self.roles, 1)
-        self.tabs.addTab(roles, "Roles & permissions")
+        self.tabs.addTab(roles, "Roles && permissions")
 
     def subtitle(self) -> str:
         return "Accounts, roles and permissions"

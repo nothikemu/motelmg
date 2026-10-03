@@ -298,7 +298,7 @@ class DataTable(QWidget):
     def fit_columns(self, maximum: int = 340) -> None:
         """Size columns to their content (capped), stretching the flexible one."""
         header = self.view.horizontalHeader()
-        for i, col in enumerate(self.columns):
+        for i in range(len(self.columns)):
             header.setSectionResizeMode(i, QHeaderView.ResizeMode.Interactive)
             self.view.resizeColumnToContents(i)
             header.resizeSection(i, min(max(header.sectionSize(i) + 10, 56), maximum))

@@ -116,7 +116,7 @@ class BarChart(ChartBase):
         for i, text in enumerate(self.labels):
             x0 = left + slot * i + (slot - bar_w * groups) / 2
             base = top + h
-            for s, (name, vals) in enumerate(self.series):
+            for s, (_name, vals) in enumerate(self.series):
                 value = vals[i]
                 bh = h * value / top_value if top_value else 0
                 if self.stacked:
@@ -166,7 +166,7 @@ class LineChart(ChartBase):
             p.drawText(QRectF(0, y - 8, left - 8, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
                        self.axis_fmt(peak * step / 4))
         step_x = w / max(n - 1, 1)
-        for s, (name, vals) in enumerate(self.series):
+        for s, (_name, vals) in enumerate(self.series):
             color = QColor(colors[s % len(colors)])
             points = [QPointF(left + step_x * i, top + h - h * min(v, peak) / peak) for i, v in enumerate(vals)]
             fill = QPainterPath()

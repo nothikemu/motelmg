@@ -5,7 +5,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtCore import QEvent, QSize, Qt, QTimer
 from PySide6.QtWidgets import (QDialog, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit, QListWidget,
                                QListWidgetItem, QVBoxLayout, QWidget)
 
@@ -58,7 +58,7 @@ class GlobalSearchDialog(QDialog):
         self.input.installEventFilter(self)
         layout.addWidget(self.input)
         self.results = QListWidget()
-        self.results.setStyleSheet("QListWidget { border: none; }")
+        self.results.setStyleSheet("QListWidget { border: none; } QListWidget::item { padding: 0px; margin: 1px 0; }")
         self.results.itemActivated.connect(self._open)
         self.results.itemClicked.connect(self._open)
         layout.addWidget(self.results, 1)
@@ -120,7 +120,8 @@ class GlobalSearchDialog(QDialog):
             item = QListWidgetItem()
             item.setData(Qt.ItemDataRole.UserRole, hit)
             widget = SearchResultWidget(hit)
-            item.setSizeHint(widget.sizeHint())
+            hint = widget.sizeHint()
+            item.setSizeHint(QSize(hint.width(), max(hint.height(), 54)))
             self.results.addItem(item)
             self.results.setItemWidget(item, widget)
             if first:

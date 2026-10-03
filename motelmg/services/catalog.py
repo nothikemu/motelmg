@@ -122,6 +122,7 @@ class CatalogService:
             new_id = self.repo.save_catalog_row(table, row_id, values)
             self.ctx.audit.log(f"settings.{table}", table, new_id,
                                f"{'Updated' if row_id else 'Created'} {label} '{values['name']}'", values)
+        self.ctx.billing.invalidate_cache()
         self.ctx.events.emit("settings", "catalog")
         return new_id
 
@@ -145,4 +146,5 @@ class CatalogService:
         with self.ctx.db.transaction():
             self.repo.delete_catalog_row(table, row_id)
             self.ctx.audit.log(f"settings.{table}_delete", table, row_id, f"Deleted {label} '{row['name']}'")
+        self.ctx.billing.invalidate_cache()
         self.ctx.events.emit("settings", "catalog")

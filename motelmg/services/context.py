@@ -50,6 +50,11 @@ class EventBus:
     def subscribe(self, topic: str, callback: Callable[[str], None]) -> None:
         self._subscribers[topic].append(callback)
 
+    def unsubscribe(self, topic: str, callback: Callable[[str], None]) -> None:
+        callbacks = self._subscribers.get(topic, [])
+        if callback in callbacks:
+            callbacks.remove(callback)
+
     def unsubscribe_all(self) -> None:
         self._subscribers.clear()
 
@@ -126,6 +131,7 @@ class AppContext:
         self.db.close()
         migrate(self.db)
         self.settings.invalidate()
+        self.billing.invalidate_cache()
 
     def close(self) -> None:
         self.db.close()

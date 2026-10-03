@@ -19,6 +19,17 @@ CLOSED = (ReservationStatus.CHECKED_OUT, ReservationStatus.CANCELLED, Reservatio
 class BillingService:
     def __init__(self, ctx):
         self.ctx = ctx
+        self._catalog: tuple[list, list] | None = None
+
+    def invalidate_cache(self) -> None:
+        """Called whenever taxes or charge items change."""
+        self._catalog = None
+
+    def _taxes_and_items(self) -> tuple[list, list]:
+        if self._catalog is None:
+            items = [i for i in self.repo.charge_items() if i.auto_apply != "none" and i.default_amount > 0]
+            self._catalog = (self.repo.taxes(), items)
+        return self._catalog
 
     @property
     def repo(self):
@@ -58,18 +69,20 @@ class BillingService:
         return self.repo.charges_total(res_id) - self.repo.paid_total(res_id)
 
     def auto_items(self):
-        return [i for i in self.repo.charge_items() if i.auto_apply != "none" and i.default_amount > 0]
+        return list(self._taxes_and_items()[1])
 
     def quote(self, *, nights: int, nightly_rate: int, discount_bp: int = 0, discount_name: str = "") -> Quote:
+        taxes, items = self._taxes_and_items()
         return compute_quote(nights=nights, nightly_rate=nightly_rate, discount_bp=discount_bp,
-                             discount_name=discount_name, taxes=self.repo.taxes(), auto_items=self.auto_items(),
+                             discount_name=discount_name, taxes=taxes, auto_items=items,
                              deposit_percent=self.ctx.settings.get_int("policy.deposit_percent"))
 
     def nights_value(self, nights: int, nightly_rate: int, discount_bp: int = 0) -> int:
         """Total (with taxes and per-night fees) of ``nights`` extra room nights."""
-        per_night_items = [i for i in self.auto_items() if i.auto_apply == "per_night"]
+        taxes, items = self._taxes_and_items()
+        per_night_items = [i for i in items if i.auto_apply == "per_night"]
         return compute_quote(nights=nights, nightly_rate=nightly_rate, discount_bp=discount_bp,
-                             taxes=self.repo.taxes(), auto_items=per_night_items).total
+                             taxes=taxes, auto_items=per_night_items).total
 
     def estimate(self, res: Reservation) -> int:
         """Expected total of a stay: posted charges once in house, a quote before."""

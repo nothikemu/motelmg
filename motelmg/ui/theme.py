@@ -274,7 +274,7 @@ QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSp
 QDateEdit::up-button, QDateEdit::down-button, QTimeEdit::up-button, QTimeEdit::down-button
     {{ width: 16px; border: none; background: transparent; }}
 QLineEdit#SearchField {{ padding-left: 30px; border-radius: 9px; background: {c['surface']}; }}
-QLineEdit#BigSearch {{ font-size: 16px; padding: 12px 14px 12px 40px; border-radius: 10px; }}
+QLineEdit#BigSearch {{ font-size: 16px; padding: 12px 14px; border-radius: 10px; }}
 QCheckBox, QRadioButton {{ spacing: 8px; background: transparent; }}
 QCheckBox::indicator {{ width: 16px; height: 16px; border: 1.5px solid {c['border_strong']}; border-radius: 4px;
                        background: {c['input_bg']}; }}

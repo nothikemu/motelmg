@@ -476,7 +476,7 @@ class MainWindow(QMainWindow):
             QApplication.instance().removeEventFilter(self.activity)
         except RuntimeError:
             pass
-        self.ctx.events.unsubscribe_all()
+        self.ctx.events.unsubscribe("*", self._on_data_event)
         super().closeEvent(event)
         if not self._closing_for_signout:
             QApplication.quit()
