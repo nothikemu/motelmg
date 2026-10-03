@@ -24,6 +24,7 @@ motelmg = ["resources/fonts/*", "resources/icons/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 qt_api = "pyside6"
 addopts = "-q"
 

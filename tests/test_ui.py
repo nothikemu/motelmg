@@ -268,3 +268,88 @@ def test_login_window(qtbot, tmp_path):
     assert ctx.session.username == "admin"
     lw._success = True
     ctx.close()
+
+
+def test_every_dialog_opens_on_demo_data(qtbot, tmp_path):
+    """Open every dialog for records in every state of a realistic database."""
+    from motelmg.services.setup import DEFAULT_ROOM_TYPES, DEFAULT_ROOMS, SetupService
+    from motelmg.ui.dialogs.billing import AdjustmentDialog, ChargeDialog, DiscountDialog, PaymentDialog
+    from motelmg.ui.dialogs.frontdesk import CancelDialog, CheckInDialog, CheckOutDialog, TransferDialog
+    from motelmg.ui.dialogs.guest import GuestDialog
+    from motelmg.ui.dialogs.misc import GlobalSearchDialog, ShortcutsDialog
+    from motelmg.ui.dialogs.property import (AssignDialog, BulkRoomsDialog, ResolveTicketDialog, RoomDialog,
+                                             RoomTypeDialog, ServiceStatusDialog, TaskDialog, TicketDialog)
+    from motelmg.ui.dialogs.reservation_form import ReservationDialog
+    from motelmg.ui.dialogs.reservation_view import ReservationView
+    from motelmg.ui.dialogs.staff import ChangePasswordDialog, ResetPasswordDialog, RoleDialog, UserDialog
+    from motelmg.ui.main_window import MainWindow
+    ctx = AppContext(tmp_path / "demo.db")
+    SetupService(ctx).complete({"admin": ADMIN, "property": {"property.name": "Demo"}, "tax_rate": "8",
+                                "room_types": DEFAULT_ROOM_TYPES, "rooms": DEFAULT_ROOMS, "demo": True})
+    win = MainWindow(ctx)
+    qtbot.addWidget(win)
+    opened = []
+
+    def check(dialog):
+        qtbot.addWidget(dialog)
+        dialog.show()
+        dialog.close()
+        opened.append(type(dialog).__name__)
+
+    for status in ReservationStatus.ALL:
+        for res in ctx.repo_res.search(statuses=[status], limit=2):
+            check(ReservationView(win, win, res.id, tab="folio"))
+            check(PaymentDialog(win, win, res.id))
+            if res.paid > 0:
+                check(PaymentDialog(win, win, res.id, refund=True))
+            if status == ReservationStatus.CONFIRMED:
+                check(ReservationDialog(win, win, mode="edit", reservation_id=res.id))
+                check(CheckInDialog(win, win, res.id))
+                check(CancelDialog(win, win, res.id))
+                check(CancelDialog(win, win, res.id, no_show=True))
+                check(TransferDialog(win, win, res.id))
+            if status == ReservationStatus.CHECKED_IN:
+                check(ReservationDialog(win, win, mode="edit", reservation_id=res.id))
+                check(CheckOutDialog(win, win, res.id))
+                check(TransferDialog(win, win, res.id))
+                check(ChargeDialog(win, win, res.id))
+                check(DiscountDialog(win, win, res.id))
+                check(AdjustmentDialog(win, win, res.id))
+    for guest in ctx.guests.search("")[:3]:
+        check(GuestDialog(win, win, guest.id))
+    rooms = ctx.rooms.list_rooms()
+    check(RoomDialog(win, win, rooms[0].id))
+    check(RoomDialog(win, win))
+    check(RoomTypeDialog(win, win, ctx.rooms.list_types()[0].id))
+    check(BulkRoomsDialog(win, win))
+    vacant = next(r for r in rooms if not ctx.repo_res.in_house_for_room(r.id))
+    check(ServiceStatusDialog(win, win, vacant.id))
+    for ticket in ctx.maintenance.search()[:3]:
+        check(TicketDialog(win, win, ticket.id))
+        if ticket.status in ("open", "in_progress", "on_hold"):
+            check(ResolveTicketDialog(win, win, ticket.id))
+    check(TicketDialog(win, win, room_id=rooms[0].id))
+    task = ctx.housekeeping.tasks()[0]
+    check(TaskDialog(win, win, task_id=task.id))
+    check(TaskDialog(win, win, room_id=rooms[0].id))
+    check(AssignDialog(win, win, [task.id]))
+    user = ctx.users.list_users()[-1]
+    check(UserDialog(win, win, user.id))
+    check(UserDialog(win, win))
+    check(ResetPasswordDialog(win, win, user.id))
+    check(ChangePasswordDialog(win, win))
+    for role in ctx.users.list_roles():
+        check(RoleDialog(win, win, role.id))
+    check(GlobalSearchDialog(win, win, "a"))
+    check(ShortcutsDialog(win))
+    win.navigate("reports")
+    reports = win.pages["reports"]
+    for i in range(reports.list.count()):
+        item = reports.list.item(i)
+        if item.data(Qt.ItemDataRole.UserRole):
+            reports.list.setCurrentItem(item)
+            assert reports.result is not None
+    assert len(opened) > 40
+    win._closing_for_signout = True
+    win.close()
+    ctx.close()

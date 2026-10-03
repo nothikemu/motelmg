@@ -181,7 +181,7 @@ On Linux, Qt needs a few system libraries:
 ### Tests
 
 ```bash
-QT_QPA_PLATFORM=offscreen pytest     # 93 tests: services, database, security and GUI workflows
+QT_QPA_PLATFORM=offscreen pytest     # 94 tests: services, database, security and GUI workflows
 ruff check motelmg tests packaging
 ```
 
