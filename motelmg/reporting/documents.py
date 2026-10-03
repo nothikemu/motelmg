@@ -124,7 +124,7 @@ def folio_html(ctx, folio: Folio) -> str:
     if not rows:
         rows.append("<tr><td colspan='5' class='muted'>No charges have been posted yet.</td></tr>")
     charges = f"""
-<table class="lines" cellspacing="0">
+<table class="lines" width="100%" cellspacing="0">
 <tr><th width="16%">Date</th><th>Description</th><th class="num" width="7%">Qty</th>
 <th class="num" width="15%">Rate</th><th class="num" width="15%">Amount</th></tr>
 {''.join(rows)}
@@ -141,7 +141,7 @@ def folio_html(ctx, folio: Folio) -> str:
     if pay_rows:
         payments = f"""
 <div style="font-weight:600; margin:16px 0 6px 0">Payments</div>
-<table class="lines" cellspacing="0">
+<table class="lines" width="100%" cellspacing="0">
 <tr><th width="26%">Date</th><th>Details</th><th width="16%">Receipt</th><th class="num" width="15%">Amount</th></tr>
 {''.join(pay_rows)}
 </table>"""
@@ -208,7 +208,7 @@ def registration_card_html(ctx, res_id: int) -> str:
 
     body = f"""
 {_header(ctx, 'REGISTRATION CARD', res.confirmation_no)}
-<table class="lines" cellspacing="0">
+<table class="lines" width="100%" cellspacing="0">
 {row('Guest name', guest.full_name)}
 {row('Address', guest.address_text.replace(chr(10), ', '))}
 {row('Phone', guest.phone)}{row('Email', guest.email)}
@@ -254,7 +254,7 @@ def report_html(ctx, report: ReportResult, formatter) -> str:
     body = f"""
 {_header(ctx, report.title.upper(), '', f'<div style="font-size:9pt">{esc(report.subtitle)}</div>')}
 {summary}
-<table class="lines" cellspacing="0"><tr>{head}</tr>{''.join(body_rows) or
+<table class="lines" width="100%" cellspacing="0"><tr>{head}</tr>{''.join(body_rows) or
     f"<tr><td colspan='{len(report.columns)}' class='muted'>No data for this period.</td></tr>"}</table>
 <p style="text-align:center; color:#9ca3af; font-size:7.5pt; margin-top:16px">Generated
 {datetime.now().strftime('%b %d, %Y %I:%M %p')} by {esc(ctx.session.full_name if ctx.session else '')}</p>"""

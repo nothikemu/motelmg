@@ -53,22 +53,32 @@ class HousekeepingService:
 
     def summary(self) -> HKSummary:
         s = HKSummary()
+        occupied = self.ctx.repo_rooms.occupied_room_ids()
         for room in self.ctx.repo_rooms.list_rooms():
             setattr(s, room.hk_status, getattr(s, room.hk_status) + 1)
+            if room.hk_status == HKStatus.CLEAN and room.id not in occupied:
+                s.awaiting_inspection += 1
         today = self._today()
-        for task in self.repo.search(today, statuses=["pending", "in_progress", "completed"]):
+        for task in self.repo.search(today, statuses=["pending", "in_progress"]):
             if task.status == TaskStatus.PENDING:
                 s.pending_tasks += 1
                 if task.assigned_to is None:
                     s.unassigned += 1
-            elif task.status == TaskStatus.IN_PROGRESS:
+            else:
                 s.in_progress_tasks += 1
-            elif task.status == TaskStatus.COMPLETED:
-                if task.task_type in TaskType.CLEANING and task.hk_status == HKStatus.CLEAN:
-                    s.awaiting_inspection += 1
-                if task.completed_at and task.completed_at.date() == today:
-                    s.completed_today += 1
+        s.completed_today = len(self.repo.search(today, statuses=["completed", "inspected"], start=today, end=today))
         return s
+
+    def awaiting_inspection(self, assigned_to: int | None = None) -> list[HKTask]:
+        """Latest completed cleaning task of each vacant room that is clean but not inspected."""
+        self.ctx.require("housekeeping.view")
+        today = self._today()
+        latest: dict[int, HKTask] = {}
+        for task in self.repo.search(today, statuses=[TaskStatus.COMPLETED, TaskStatus.INSPECTED]):
+            if task.task_type in TaskType.CLEANING and (task.room_id not in latest or task.id > latest[task.room_id].id):
+                latest[task.room_id] = task
+        return [t for t in latest.values() if t.status == TaskStatus.COMPLETED and t.hk_status == HKStatus.CLEAN
+                and not t.occupied and (assigned_to is None or t.assigned_to == assigned_to)]
 
     # -- internal helpers used by other services ------------------------------------------
     def _priority_for(self, room: Room, task_type: str) -> int:

@@ -7,7 +7,6 @@ from motelmg.core.errors import ConflictError, ValidationError
 from motelmg.reporting.documents import report_html
 from motelmg.reporting.export import report_to_csv
 from motelmg.services.context import AppContext
-from motelmg.services.demo import generate_demo_data
 from motelmg.services.setup import DEFAULT_ROOM_TYPES, DEFAULT_ROOMS, SetupService
 from tests.conftest import ADMIN, book, cash, new_guest
 

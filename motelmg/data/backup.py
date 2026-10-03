@@ -147,6 +147,28 @@ def inspect_backup(path: Path) -> BackupDetails:
         conn.close()
 
 
+def replace_database_file(db_path: Path | str, source: Path | str) -> Path | None:
+    """Recovery path used when the live database cannot even be opened:
+    validate ``source`` and copy it over ``db_path`` (keeping the old file)."""
+    db_path, source = Path(db_path), Path(source)
+    inspect_backup(source)
+    kept = None
+    if db_path.exists():
+        kept = db_path.with_name(f"{db_path.stem}-damaged-{datetime.now():%Y%m%d-%H%M%S}.db")
+        try:
+            shutil.copy2(db_path, kept)
+        except OSError:
+            kept = None
+    try:
+        for suffix in ("-wal", "-shm"):
+            Path(str(db_path) + suffix).unlink(missing_ok=True)
+        shutil.copy2(source, db_path)
+    except OSError as exc:
+        raise DatabaseError(f"Could not restore the backup: {exc}") from exc
+    log.info("Database file replaced from %s", source)
+    return kept
+
+
 def restore_backup(db: Database, source: Path, safety_dir: Path) -> Path:
     """Replace the live database with ``source``.
 
