@@ -123,8 +123,8 @@ class CheckInDialog(BaseDialog):
         self.ok = self.add_footer_button("Check in", self._save, "primary", icon_name="log-in", default=True)
         if p.blocking:
             self.ok.setEnabled(False)
-            if self.ctx.can("reservations.transfer"):
-                self.add_footer_button("Change room", self._change_room, "soft", icon_name="transfer", left=True)
+        if p.room_issue and self.ctx.can("reservations.transfer"):
+            self.add_footer_button("Change room", self._change_room, "soft", icon_name="transfer", left=True)
 
     def _change_room(self) -> None:
         self.reject()

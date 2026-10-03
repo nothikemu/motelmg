@@ -38,6 +38,8 @@ The first time it starts, MotelMG:
    pre-filled, and you can also load **sample data** to explore the system;
 3. opens the dashboard, signed in as the administrator.
 
+A step-by-step guide for front desk staff is in **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**.
+
 ### Where is my data?
 
 Everything is stored in a single SQLite database file in your user profile:
