@@ -8,11 +8,12 @@ from typing import Any, Callable
 
 from PySide6.QtCore import QEvent, QRectF, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QFont, QPainter, QPen
-from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
+from PySide6.QtWidgets import (QAbstractButton, QButtonGroup, QFrame, QGridLayout, QHBoxLayout, QLabel, QLayout, QLineEdit,
                                QPushButton, QSizePolicy, QToolButton, QVBoxLayout, QWidget)
 
 from motelmg.ui.icons import icon, pixmap
 from motelmg.ui.theme import theme, theme_manager
+from motelmg.ui.widgets.flow import FlowLayout
 
 # -- themed icons ------------------------------------------------------------------------------
 _themed: "weakref.WeakKeyDictionary[QWidget, tuple[str, str, int]]" = weakref.WeakKeyDictionary()
@@ -150,6 +151,21 @@ def vbox(*widgets, spacing: int = 8, margins=(0, 0, 0, 0)) -> QVBoxLayout:
     return layout
 
 
+class ElidedLabel(QLabel):
+    """Single-line label that shortens itself with "…" instead of forcing its parent wider."""
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        return QSize(min(super().minimumSizeHint().width(), 40), super().minimumSizeHint().height())
+
+    def paintEvent(self, event) -> None:  # noqa: N802
+        text = self.text()
+        elided = self.fontMetrics().elidedText(text, Qt.TextElideMode.ElideRight, self.contentsRect().width())
+        self.setToolTip(text if elided != text else "")
+        painter = QPainter(self)
+        self.style().drawItemText(painter, self.contentsRect(), int(self.alignment()), self.palette(),
+                                  self.isEnabled(), elided, self.foregroundRole())
+
+
 class Divider(QFrame):
     def __init__(self, vertical: bool = False):
         super().__init__()
@@ -278,6 +294,7 @@ class StatCard(Card):
         super().__init__(padding=16, spacing=6)
         self.tile = IconTile(icon_name, tone)
         self.title = label(title, "overline")
+        self.title.setWordWrap(True)  # wraps instead of clipping on narrow screens
         self.value = label("—", "kpi")
         self.sub = label("", "faint")
         self.sub.setWordWrap(True)
@@ -288,7 +305,7 @@ class StatCard(Card):
         self.body.addLayout(top)
         self.body.addWidget(self.value)
         self.body.addWidget(self.sub)
-        self.setMinimumWidth(170)
+        self.setMinimumWidth(150)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def set(self, value: str, sub: str = "", tone: str | None = None) -> None:
@@ -301,6 +318,49 @@ class StatCard(Card):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mouseReleaseEvent(event)
+
+
+class CardGrid(QWidget):
+    """Row of stat cards that drops to two rows (then one) when the cards would get too narrow."""
+
+    def __init__(self, cards: list[QWidget], min_card_width: int = 175, spacing: int = 14):
+        super().__init__()
+        self.setObjectName("Transparent")
+        self.cards = cards
+        self.min_card_width = min_card_width
+        self.grid = QGridLayout(self)
+        self.grid.setContentsMargins(0, 0, 0, 0)
+        self.grid.setSpacing(spacing)
+        self.grid.setSizeConstraint(QLayout.SizeConstraint.SetNoConstraint)
+        self.columns = 0
+        self._arrange(len(cards))
+
+    def _columns_for(self, width: int) -> int:
+        n = len(self.cards)
+        spacing = self.grid.spacing()
+        for columns in sorted({n, (n + 1) // 2, (n + 2) // 3, 2, 1}, reverse=True):
+            if columns <= n and columns * self.min_card_width + (columns - 1) * spacing <= width:
+                return columns
+        return 1
+
+    def _arrange(self, columns: int) -> None:
+        if columns == self.columns:
+            return
+        self.columns = columns
+        for card in self.cards:
+            self.grid.removeWidget(card)
+        for c in range(len(self.cards)):
+            self.grid.setColumnStretch(c, 1 if c < columns else 0)
+        for i, card in enumerate(self.cards):
+            self.grid.addWidget(card, i // columns, i % columns)
+        self.updateGeometry()
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        return QSize(self.min_card_width, super().minimumSizeHint().height())
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        self._arrange(self._columns_for(event.size().width()))
+        super().resizeEvent(event)
 
 
 class EmptyState(QWidget):
@@ -346,7 +406,7 @@ class SearchField(QLineEdit):
         self.setObjectName("SearchField")
         self.setPlaceholderText(placeholder)
         self.setClearButtonEnabled(True)
-        self.setMinimumWidth(240)
+        self.setMinimumWidth(180)
         self._timer = QTimer(self)
         self._timer.setSingleShot(True)
         self._timer.setInterval(delay)
@@ -361,6 +421,14 @@ class SearchField(QLineEdit):
         painter.end()
 
 
+def toolbar(spacing: int = 10) -> tuple[QWidget, FlowLayout]:
+    """A row of filters/buttons that wraps onto a second line when the window is narrow.
+    Search boxes take up the spare room on their line, as in a normal toolbar."""
+    host = QWidget()
+    host.setObjectName("Transparent")
+    return host, FlowLayout(host, spacing, line_hint=True)
+
+
 class ChipGroup(QWidget):
     """Row of exclusive filter chips."""
 
@@ -369,9 +437,7 @@ class ChipGroup(QWidget):
     def __init__(self, items: list[tuple[str, Any]] | None = None):
         super().__init__()
         self.setObjectName("Transparent")
-        self._layout = QHBoxLayout(self)
-        self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setSpacing(6)
+        self._layout = FlowLayout(self, 6, line_hint=True)  # wraps onto a second line on narrow screens
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
         self._data: dict[int, Any] = {}

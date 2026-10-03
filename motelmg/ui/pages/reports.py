@@ -5,7 +5,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QFileDialog, QFrame, QGridLayout, QHBoxLayout, QListWidget,
-                               QListWidgetItem, QStackedWidget, QVBoxLayout, QWidget)
+                               QListWidgetItem, QScrollArea, QStackedWidget, QVBoxLayout, QWidget)
 
 from motelmg.core import paths
 from motelmg.reporting.documents import report_html
@@ -85,7 +85,13 @@ class ReportsPage(Page):
         self.result_layout = QVBoxLayout(self.result_host)
         self.result_layout.setContentsMargins(0, 0, 0, 0)
         self.result_layout.setSpacing(14)
-        main.addWidget(self.result_host, 1)
+        # Scrolls on short screens (e.g. 1366x768 laptops) instead of forcing the window taller.
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(self.result_host)
+        main.addWidget(scroll, 1)
         self.overlay = LoadingOverlay(self.result_host)
         self.range.changed.connect(lambda *_: self.run())
         self.year.valueChanged.connect(lambda *_: self.run())

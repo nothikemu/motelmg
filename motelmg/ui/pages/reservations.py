@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QCheckBox, QHBoxLayout
 
 from motelmg.core.enums import ReservationSource, ReservationStatus as RS
 from motelmg.ui.pages.base import Page
-from motelmg.ui.widgets.common import ChipGroup, SearchField, button, label
+from motelmg.ui.widgets.common import ChipGroup, SearchField, button, label, toolbar
 from motelmg.ui.widgets.date_range import DateRangePicker
 from motelmg.ui.widgets.forms import combo
 from motelmg.ui.widgets.table import Column, DataTable
@@ -37,11 +37,10 @@ class ReservationsPage(Page):
         if self.ctx.can("reservations.create"):
             top.addWidget(button("New reservation", "plus", "primary", on_click=lambda: self.actions.new_reservation()))
         L.addLayout(top)
-        filters = QHBoxLayout()
-        filters.setSpacing(10)
+        filters_host, filters = toolbar()
         self.search = SearchField("Guest, confirmation #, room, phone…")
         self.search.search.connect(lambda *_: self.mark_stale())
-        filters.addWidget(self.search, 1)
+        filters.addWidget(self.search)
         self.use_dates = QCheckBox("Arrival between")
         self.use_dates.toggled.connect(lambda *_: self.mark_stale())
         filters.addWidget(self.use_dates)
@@ -52,7 +51,7 @@ class ReservationsPage(Page):
         self.source.currentIndexChanged.connect(lambda *_: self.mark_stale())
         filters.addWidget(self.source)
         filters.addWidget(button("Export", "download", on_click=lambda: self.export_table(self.table, "reservations")))
-        L.addLayout(filters)
+        L.addWidget(filters_host)
         fmt = self.fmt
         self.table = DataTable([
             Column("confirmation_no", "Conf. #", width=86, bold=True),

@@ -52,7 +52,7 @@ class DateRangePicker(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
         self.preset = combo(presets or PRESETS, preset)
-        self.preset.setMinimumWidth(140)
+        self.preset.setMinimumWidth(120)
         self.start = DateEdit(today)
         self.end = DateEdit(today)
         layout.addWidget(self.preset)

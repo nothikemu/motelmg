@@ -12,7 +12,7 @@ from motelmg.core.errors import MotelError, ValidationError
 from motelmg.core.money import COMMON_CURRENCIES, parse_amount
 from motelmg.services.setup import DEFAULT_ROOM_TYPES, DEFAULT_ROOMS, SetupService
 from motelmg.ui.icons import app_icon
-from motelmg.ui.widgets.common import Banner, Card, LoadingOverlay, button, label, set_icon
+from motelmg.ui.widgets.common import Banner, Card, LoadingOverlay, button, label, set_icon, toolbar
 from motelmg.ui.widgets.forms import FormGrid, combo, line, spin
 from motelmg.ui.dialogs.staff import password_field
 
@@ -26,8 +26,11 @@ class SetupWizard(QDialog):
         self.service = SetupService(ctx)
         self.setWindowTitle(f"Set up {APP_DISPLAY_NAME}")
         self.setWindowIcon(app_icon())
-        self.resize(1000, 680)
-        self.setMinimumSize(900, 620)
+        self.setMinimumSize(860, 540)
+        screen = QApplication.primaryScreen()
+        avail = screen.availableGeometry() if screen else None
+        # Leave room for the title bar on small (e.g. 1280x720) screens.
+        self.resize(min(1000, avail.width() - 24) if avail else 1000, min(680, avail.height() - 48) if avail else 680)
         root = QHBoxLayout(self)
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
@@ -197,8 +200,7 @@ class SetupWizard(QDialog):
         page, layout = self._page("Rooms", "List your room numbers. Use the generator for a run of rooms, then "
                                   "edit or remove individual rows.")
         gen = Card(padding=14)
-        g = QHBoxLayout()
-        g.setSpacing(10)
+        g_host, g = toolbar(14)  # wraps on small screens instead of squeezing the fields
         self.gen_first = spin(101, 1, 99999)
         self.gen_count = spin(10, 1, 200)
         self.gen_type = combo([])
@@ -206,11 +208,16 @@ class SetupWizard(QDialog):
         self.gen_floor.setMaximumWidth(80)
         for text, w in (("First number", self.gen_first), ("How many", self.gen_count), ("Type", self.gen_type),
                         ("Floor", self.gen_floor)):
-            g.addWidget(label(text, "label"))
-            g.addWidget(w)
+            pair = QWidget()
+            pair.setObjectName("Transparent")
+            pl = QHBoxLayout(pair)
+            pl.setContentsMargins(0, 0, 0, 0)
+            pl.setSpacing(6)
+            pl.addWidget(label(text, "label"))
+            pl.addWidget(w)
+            g.addWidget(pair)
         g.addWidget(button("Add rooms", "plus", "soft", on_click=self._generate))
-        g.addStretch(1)
-        gen.body.addLayout(g)
+        gen.body.addWidget(g_host)
         layout.addWidget(gen)
         self.rooms_table = self._table(["Room number", "Type code", "Floor"])
         for room in DEFAULT_ROOMS:

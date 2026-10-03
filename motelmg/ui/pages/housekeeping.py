@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QGridLayout, QHBoxLayout
+from PySide6.QtWidgets import QHBoxLayout
 
 from motelmg.core.enums import Priority, TaskStatus, TaskType
 from motelmg.ui.pages.base import Page
-from motelmg.ui.widgets.common import ChipGroup, StatCard, button, label
+from motelmg.ui.widgets.common import CardGrid, ChipGroup, StatCard, button, label
 from motelmg.ui.widgets.dialogs import ask_text, confirm, guarded
 from motelmg.ui.widgets.forms import combo
 from motelmg.ui.widgets.table import Column, DataTable
@@ -21,16 +21,12 @@ class HousekeepingPage(Page):
         super().__init__(app)
         ctx = self.ctx
         L = self.layout_
-        stats = QGridLayout()
-        stats.setSpacing(14)
         self.s_dirty = StatCard("DIRTY ROOMS", "alert-circle", "amber")
         self.s_cleaning = StatCard("BEING CLEANED", "sparkles", "cyan")
-        self.s_inspect = StatCard("CLEAN, NOT INSPECTED", "eye", "purple")
-        self.s_ready = StatCard("INSPECTED", "check-circle", "green")
+        self.s_inspect = StatCard("AWAITING INSPECTION", "eye", "purple")
+        self.s_ready = StatCard("READY ROOMS", "check-circle", "green")
         self.s_done = StatCard("COMPLETED TODAY", "check", "teal")
-        for i, card in enumerate((self.s_dirty, self.s_cleaning, self.s_inspect, self.s_ready, self.s_done)):
-            stats.addWidget(card, 0, i)
-        L.addLayout(stats)
+        L.addWidget(CardGrid([self.s_dirty, self.s_cleaning, self.s_inspect, self.s_ready, self.s_done], 160))
         top = QHBoxLayout()
         top.setSpacing(10)
         chips = [("Open tasks", "open")]
@@ -97,8 +93,8 @@ class HousekeepingPage(Page):
         s = ctx.housekeeping.summary()
         self.s_dirty.set(str(s.dirty), "need cleaning", "amber" if s.dirty else "green")
         self.s_cleaning.set(str(s.cleaning), f"{s.in_progress_tasks} task(s) in progress")
-        self.s_inspect.set(str(s.awaiting_inspection), "vacant rooms awaiting inspection")
-        self.s_ready.set(str(s.inspected), "rooms inspected and ready")
+        self.s_inspect.set(str(s.awaiting_inspection), "cleaned, waiting for a supervisor")
+        self.s_ready.set(str(s.ready), "vacant and ready to sell")
         self.s_done.set(str(s.completed_today), f"{s.pending_tasks} pending · {s.unassigned} unassigned")
         current = self.assignee.currentData()
         self.assignee.blockSignals(True)

@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QHBoxLayout, QLabel, QPushBut
 from motelmg.core.enums import ReservationStatus, RoomState
 from motelmg.ui.pages.base import Page
 from motelmg.ui.widgets.charts import BarChart, DonutChart
-from motelmg.ui.widgets.common import Card, EmptyState, StatCard, button, clear_layout, label, set_icon
+from motelmg.ui.widgets.common import Card, CardGrid, EmptyState, StatCard, button, clear_layout, label, set_icon
 from motelmg.ui.widgets.table import Column, DataTable
 
 SEVERITY = {"critical": ("alert-circle", "red"), "warning": ("alert", "amber"), "info": ("info", "blue")}
@@ -61,8 +61,6 @@ class DashboardPage(Page):
         L.addLayout(quick)
 
         # KPI tiles
-        kpis = QGridLayout()
-        kpis.setSpacing(14)
         self.k_occ = StatCard("OCCUPANCY", "activity", "blue")
         self.k_avail = StatCard("READY TO SELL", "check-circle", "green")
         self.k_arr = StatCard("ARRIVALS TODAY", "log-in", "purple")
@@ -70,15 +68,14 @@ class DashboardPage(Page):
         self.k_dirty = StatCard("NEEDS CLEANING", "sparkles", "amber")
         self.k_ooo = StatCard("OUT OF ORDER", "tool", "orange")
         tiles = [self.k_occ, self.k_avail, self.k_arr, self.k_dep, self.k_dirty, self.k_ooo]
-        for i, tile in enumerate(tiles):
-            kpis.addWidget(tile, 0, i)
+        kpis = CardGrid(tiles)  # three per row on small screens
         self.k_occ.clicked.connect(lambda: app.navigate("rooms"))
         self.k_avail.clicked.connect(lambda: app.navigate("rooms", filter=RoomState.AVAILABLE))
         self.k_arr.clicked.connect(lambda: app.navigate("reservations", preset="arrivals"))
         self.k_dep.clicked.connect(lambda: app.navigate("reservations", preset="departures"))
         self.k_dirty.clicked.connect(lambda: app.navigate("housekeeping"))
         self.k_ooo.clicked.connect(lambda: app.navigate("maintenance"))
-        L.addLayout(kpis)
+        L.addWidget(kpis)
         self.financial = ctx.can("reports.financial") or ctx.can("billing.view")
         if self.financial:
             fin = QGridLayout()

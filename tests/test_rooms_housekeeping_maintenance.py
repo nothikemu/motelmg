@@ -140,3 +140,25 @@ def test_dirty_room_with_arrival_is_urgent(ctx):
     task = ctx.housekeeping.tasks(statuses=["pending"], room_id=room(ctx, "201").id)[0]
     assert task.priority == 1 and task.arrival_today
     assert any(a.key == f"hkarrival:{room(ctx, '201').id}" for a in ctx.alerts.current())
+
+
+def test_housekeeping_counts_match_the_lists(ctx):
+    """A brand-new motel has nothing awaiting inspection; a cleaned departure room shows up once."""
+    total = len(ctx.rooms.list_rooms())
+    summary = ctx.housekeeping.summary()
+    assert summary.awaiting_inspection == 0 and summary.ready == total
+    res_id = book(ctx, new_guest(ctx), "101", nights=1)
+    ctx.clock.set(datetime(2026, 3, 10, 15))
+    ctx.reservations.check_in(res_id)
+    ctx.clock.set(datetime(2026, 3, 11, 10))
+    ctx.reservations.check_out(res_id, payment={"amount": str(ctx.billing.balance(res_id) / 100),
+                                                "method_id": ctx.catalog.payment_methods()[0].id})
+    assert ctx.housekeeping.summary().ready == total - 1
+    task = ctx.housekeeping.tasks(statuses=["pending"], room_id=room(ctx, "101").id)[0]
+    ctx.housekeeping.start(task.id)
+    ctx.housekeeping.complete(task.id)
+    summary = ctx.housekeeping.summary()
+    assert summary.awaiting_inspection == len(ctx.housekeeping.awaiting_inspection()) == 1
+    assert summary.ready == total  # inspection is optional by default, so a clean room can be sold
+    ctx.housekeeping.inspect(task.id, True)
+    assert ctx.housekeeping.summary().awaiting_inspection == 0

@@ -122,3 +122,16 @@ def test_invoice_numbers_and_document(ctx):
     assert len(ctx.billing.invoices()) == 2
     assert {r["id"] for r in ctx.billing.outstanding()} == {a}
     assert ctx.clock.today() - timedelta(days=1)
+
+
+def test_tax_on_a_quantity_is_worked_out_on_the_line_total(tmp_path):
+    """2 x $15.00 at 9.5% is $2.85; rounding per unit ($1.43 x 2) would charge $2.86."""
+    from tests.conftest import make_context
+    ctx = make_context(tmp_path / "rate.db", tax_rate="9.5", nightly_tax="0")
+    res_id = checked_in(ctx, nights=1)
+    before = ctx.billing.folio(res_id).tax_total
+    ctx.billing.post_charge(res_id, {"description": "Pet fee", "amount": "15.00", "quantity": 2})
+    folio = ctx.billing.folio(res_id)
+    assert folio.tax_total - before == 2_85
+    assert folio.total == folio.subtotal + folio.tax_total
+    ctx.close()

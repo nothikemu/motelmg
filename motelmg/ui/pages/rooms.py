@@ -201,17 +201,30 @@ class RoomsPage(Page):
         self.drawer_scroll = drawer_scroll
         body.addWidget(drawer_scroll)
         L.addLayout(body, 1)
-        self.legend = QHBoxLayout()
-        self.legend.setSpacing(16)
+        legend = QWidget()
+        legend.setObjectName("Transparent")
+        self.legend = FlowLayout(legend, 16, line_hint=True)
         for state in (RoomState.AVAILABLE, RoomState.OCCUPIED, RoomState.RESERVED, RoomState.DUE_OUT,
                       RoomState.OVERDUE, RoomState.VACANT_DIRTY, RoomState.MAINTENANCE, RoomState.OUT_OF_SERVICE):
+            entry = QWidget()
+            entry.setObjectName("Transparent")
+            row = QHBoxLayout(entry)
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(6)
             dot = QLabel()
             dot.setFixedSize(10, 10)
             dot.setStyleSheet(f"background: {theme().accent(RoomState.TONES[state])}; border-radius: 5px;")
-            self.legend.addWidget(dot)
-            self.legend.addWidget(label(RoomState.LABELS[state], "faint"))
-        self.legend.addStretch(1)
-        L.addLayout(self.legend)
+            row.addWidget(dot)
+            row.addWidget(label(RoomState.LABELS[state], "faint"))
+            self.legend.addWidget(entry)
+        L.addWidget(legend)
+
+    @staticmethod
+    def _button_row() -> tuple[QWidget, FlowLayout]:
+        """A row of drawer buttons that wraps instead of squeezing the labels."""
+        host = QWidget()
+        host.setObjectName("Transparent")
+        return host, FlowLayout(host, 6)
 
     def subtitle(self) -> str:
         if not self.items:
@@ -347,7 +360,7 @@ class RoomsPage(Page):
             grid.add("bal", "Balance", fmt.money(res.balance))
             grid.add("conf", "Reservation", res.confirmation_no)
             D.addWidget(grid)
-            row = QHBoxLayout()
+            host, row = self._button_row()
             row.addWidget(button("Open", "book", small=True, on_click=lambda: self.actions.open_reservation(res.id)))
             if can("reservations.checkout"):
                 row.addWidget(button("Check out", "log-out", "primary", small=True,
@@ -355,8 +368,7 @@ class RoomsPage(Page):
             if can("billing.payment"):
                 row.addWidget(button("Payment", "dollar", small=True,
                                      on_click=lambda: self.actions.take_payment(res.id)))
-            row.addStretch(1)
-            D.addLayout(row)
+            D.addWidget(host)
         if item.arrival:
             arr = item.arrival
             D.addWidget(Divider())
@@ -366,13 +378,12 @@ class RoomsPage(Page):
             D.addWidget(label(f"{arr.confirmation_no} · {arr.nights} night(s)"
                               + (f" · ETA {fmt.time(arr.expected_arrival)}" if arr.expected_arrival else ""),
                               "muted"))
-            row = QHBoxLayout()
+            host, row = self._button_row()
             row.addWidget(button("Open", "book", small=True, on_click=lambda: self.actions.open_reservation(arr.id)))
             if can("reservations.checkin"):
                 row.addWidget(button("Check in", "log-in", "primary", small=True,
                                      on_click=lambda: self.actions.check_in(arr.id)))
-            row.addStretch(1)
-            D.addLayout(row)
+            D.addWidget(host)
         if item.next_reservation and not item.arrival:
             nxt = item.next_reservation
             D.addWidget(Divider())
@@ -389,8 +400,7 @@ class RoomsPage(Page):
             if can("reservations.checkin") and not item.arrival:
                 D.addWidget(button("Walk-in to this room", "log-in",
                                    on_click=lambda: self.actions.walk_in(room_id=room.id)))
-        hk = QHBoxLayout()
-        hk.setSpacing(6)
+        hk_host, hk = self._button_row()
         if can("housekeeping.work") or can("housekeeping.manage"):
             if room.hk_status != HKStatus.DIRTY:
                 hk.addWidget(button("Mark dirty", small=True, on_click=lambda: self._set_hk(HKStatus.DIRTY)))
@@ -399,8 +409,8 @@ class RoomsPage(Page):
         if can("housekeeping.inspect") and room.hk_status != HKStatus.INSPECTED:
             hk.addWidget(button("Inspected", "check-circle", small=True,
                                 on_click=lambda: self._set_hk(HKStatus.INSPECTED)))
-        hk.addStretch(1)
-        D.addLayout(hk)
+        if hk.count():
+            D.addWidget(hk_host)
         if can("maintenance.report"):
             D.addWidget(button("Report maintenance issue", "tool", on_click=lambda: self.actions.new_ticket(room.id)))
         if can("rooms.status"):

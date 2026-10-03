@@ -29,6 +29,9 @@ Download the installer for your system from the project's **Releases** page
 | macOS | `MotelMG-<version>-macos-<arch>.dmg` | Open the disk image and drag **MotelMG** into **Applications**. |
 | Linux | `MotelMG-<version>-x86_64.AppImage` | Mark it as executable (right-click → Properties → Permissions) and double-click it. |
 
+MotelMG works on screens of 1280×720 and larger, including 1366×768 laptops and
+laptops running at 150% display scaling.
+
 The first time it starts, MotelMG:
 
 1. creates its database automatically;
@@ -183,7 +186,7 @@ On Linux, Qt needs a few system libraries:
 ### Tests
 
 ```bash
-QT_QPA_PLATFORM=offscreen pytest     # 94 tests: services, database, security and GUI workflows
+QT_QPA_PLATFORM=offscreen pytest     # 99 tests: services, database, security and GUI workflows
 ruff check motelmg tests packaging
 ```
 

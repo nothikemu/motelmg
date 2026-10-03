@@ -7,7 +7,7 @@ from PySide6.QtWidgets import QHBoxLayout, QTabWidget, QVBoxLayout, QWidget
 from motelmg.core.dates import parse_datetime
 from motelmg.core.enums import PaymentKind, ReservationStatus
 from motelmg.ui.pages.base import Page
-from motelmg.ui.widgets.common import SearchField, StatCard, button, label
+from motelmg.ui.widgets.common import SearchField, StatCard, button, label, toolbar
 from motelmg.ui.widgets.date_range import DateRangePicker
 from motelmg.ui.widgets.forms import combo
 from motelmg.ui.widgets.table import Column, DataTable
@@ -41,8 +41,7 @@ class BillingPage(Page):
         tl = QVBoxLayout(tx)
         tl.setContentsMargins(0, 14, 0, 0)
         tl.setSpacing(12)
-        bar = QHBoxLayout()
-        bar.setSpacing(10)
+        bar_host, bar = toolbar()
         self.range = DateRangePicker(self.ctx.clock.today(), "7d")
         self.range.changed.connect(lambda *_: self.mark_stale())
         bar.addWidget(self.range)
@@ -54,9 +53,9 @@ class BillingPage(Page):
         bar.addWidget(self.kind)
         self.search = SearchField("Receipt, guest, confirmation #…")
         self.search.search.connect(lambda *_: self.mark_stale())
-        bar.addWidget(self.search, 1)
+        bar.addWidget(self.search)
         bar.addWidget(button("Export", "download", on_click=lambda: self.export_table(self.tx_table, "transactions")))
-        tl.addLayout(bar)
+        tl.addWidget(bar_host)
         self.tx_table = DataTable([
             Column("created_at", "Date / time", "datetime", width=160),
             Column("receipt_no", "Receipt", width=100, bold=True),
@@ -118,14 +117,14 @@ class BillingPage(Page):
         il = QVBoxLayout(inv)
         il.setContentsMargins(0, 14, 0, 0)
         il.setSpacing(12)
-        ibar = QHBoxLayout()
+        ibar_host, ibar = toolbar()
         self.inv_range = DateRangePicker(self.ctx.clock.today(), "30d")
         self.inv_range.changed.connect(lambda *_: self.mark_stale())
         ibar.addWidget(self.inv_range)
         self.inv_search = SearchField("Invoice #, guest…")
         self.inv_search.search.connect(lambda *_: self.mark_stale())
-        ibar.addWidget(self.inv_search, 1)
-        il.addLayout(ibar)
+        ibar.addWidget(self.inv_search)
+        il.addWidget(ibar_host)
         self.inv_table = DataTable([
             Column("invoice_no", "Invoice", width=110, bold=True),
             Column("issued_at", "Issued", "datetime", width=160),

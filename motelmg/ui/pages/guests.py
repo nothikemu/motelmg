@@ -26,7 +26,7 @@ class GuestsPage(Page):
         top.addWidget(self.chips)
         top.addStretch(1)
         self.search = SearchField("Name, phone, email, ID number, plate…")
-        self.search.setMinimumWidth(320)
+        self.search.setMinimumWidth(220)
         self.search.search.connect(lambda *_: self.mark_stale())
         top.addWidget(self.search)
         top.addWidget(button("Export", "download", on_click=lambda: self.export_table(self.table, "guests")))

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, QTimer, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, QTimer, Signal
 from PySide6.QtGui import QAction, QKeySequence, QShortcut
 from PySide6.QtWidgets import (QApplication, QDialog, QFrame, QHBoxLayout, QLabel, QMainWindow, QMenu, QPushButton,
                                QScrollArea, QStackedWidget, QToolButton, QVBoxLayout, QWidget)
@@ -16,7 +16,7 @@ from motelmg.ui.actions import Actions
 from motelmg.ui.fmt import Formatter
 from motelmg.ui.icons import app_icon
 from motelmg.ui.widgets import forms
-from motelmg.ui.widgets.common import clear_layout, Avatar, Badge, button, icon_button, label, set_icon
+from motelmg.ui.widgets.common import clear_layout, Avatar, Badge, ElidedLabel, button, icon_button, label, set_icon
 from motelmg.ui.widgets.dialogs import guarded
 from motelmg.ui.widgets.toast import ToastManager
 
@@ -114,6 +114,33 @@ class AlertsPopup(QFrame):
         self.w.update_alert_badge()
 
 
+class SearchLauncher(QPushButton):
+    """The top bar search box. Uses a shorter hint when the window is narrow."""
+
+    LONG = "  Search guests, reservations, rooms…     Ctrl+K"
+    SHORT = "  Search…   Ctrl+K"
+
+    def __init__(self):
+        super().__init__(self.LONG)
+
+    def _hint_for(self, text: str) -> QSize:
+        # Measured on demand so the themed font and padding are taken into account.
+        base = super().sizeHint()
+        metrics = self.fontMetrics()
+        return QSize(base.width() + metrics.horizontalAdvance(text) - metrics.horizontalAdvance(self.text()),
+                     base.height())
+
+    def sizeHint(self) -> QSize:  # noqa: N802
+        return self._hint_for(self.LONG)
+
+    def minimumSizeHint(self) -> QSize:  # noqa: N802
+        return self._hint_for(self.SHORT)
+
+    def resizeEvent(self, event) -> None:  # noqa: N802
+        self.setText(self.LONG if self.width() >= self._hint_for(self.LONG).width() else self.SHORT)
+        super().resizeEvent(event)
+
+
 class MainWindow(QMainWindow):
     signed_out = Signal()
     restored = Signal()
@@ -126,7 +153,7 @@ class MainWindow(QMainWindow):
         self.actions = Actions(self)
         self.setWindowTitle(f"{ctx.settings.property_name} — {APP_DISPLAY_NAME}")
         self.setWindowIcon(app_icon())
-        self.setMinimumSize(1180, 720)
+        self.setMinimumSize(1000, 560)  # the layout itself sets the real floor (fits 1280x720 screens)
         self.pages: dict[str, object] = {}
         self.nav_buttons: dict[str, QPushButton] = {}
         self._closing_for_signout = False
@@ -248,15 +275,14 @@ class MainWindow(QMainWindow):
         layout.setSpacing(10)
         titles = QVBoxLayout()
         titles.setSpacing(0)
-        self.page_title = QLabel("")
+        self.page_title = ElidedLabel("")
         self.page_title.setObjectName("PageTitle")
-        self.page_subtitle = QLabel("")
+        self.page_subtitle = ElidedLabel("")
         self.page_subtitle.setObjectName("PageSubtitle")
         titles.addWidget(self.page_title)
         titles.addWidget(self.page_subtitle)
-        layout.addLayout(titles)
-        layout.addStretch(1)
-        self.search_btn = QPushButton("  Search guests, reservations, rooms…     Ctrl+K")
+        layout.addLayout(titles, 1)
+        self.search_btn = SearchLauncher()
         self.search_btn.setObjectName("SearchLauncher")
         self.search_btn.setCursor(Qt.CursorShape.PointingHandCursor)
         set_icon(self.search_btn, "search", "text_faint", 15)

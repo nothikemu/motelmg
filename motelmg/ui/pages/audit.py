@@ -3,10 +3,9 @@ from __future__ import annotations
 import html
 import json
 
-from PySide6.QtWidgets import QHBoxLayout
 
 from motelmg.ui.pages.base import Page
-from motelmg.ui.widgets.common import SearchField, button, label
+from motelmg.ui.widgets.common import SearchField, button, label, toolbar
 from motelmg.ui.widgets.date_range import DateRangePicker
 from motelmg.ui.widgets.dialogs import inform
 from motelmg.ui.widgets.forms import combo
@@ -27,8 +26,7 @@ class AuditPage(Page):
     def __init__(self, app):
         super().__init__(app)
         L = self.layout_
-        bar = QHBoxLayout()
-        bar.setSpacing(10)
+        bar_host, bar = toolbar()
         self.range = DateRangePicker(self.ctx.clock.today(), "7d")
         self.range.changed.connect(lambda *_: self.mark_stale())
         bar.addWidget(self.range)
@@ -40,9 +38,9 @@ class AuditPage(Page):
         bar.addWidget(self.group)
         self.search = SearchField("Search descriptions…")
         self.search.search.connect(lambda *_: self.mark_stale())
-        bar.addWidget(self.search, 1)
+        bar.addWidget(self.search)
         bar.addWidget(button("Export", "download", on_click=lambda: self.export_table(self.table, "audit-log")))
-        L.addLayout(bar)
+        L.addWidget(bar_host)
         self.table = DataTable([
             Column("ts", "When", "datetime", width=170),
             Column("username", "Staff", width=110),

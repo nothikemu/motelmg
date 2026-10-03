@@ -353,3 +353,55 @@ def test_every_dialog_opens_on_demo_data(qtbot, tmp_path):
     win._closing_for_signout = True
     win.close()
     ctx.close()
+
+
+def test_toast_outliving_its_window_is_harmless(qtbot):
+    """Signing out right after an action closes the window while its toast is still showing.
+    The toast's timer must not fire into the deleted window."""
+    from PySide6.QtWidgets import QWidget
+
+    from motelmg.ui.widgets.toast import ToastManager
+    host = QWidget()
+    host.resize(400, 300)
+    host.show()
+    toasts = ToastManager(host)
+    toasts.show("Room 205 is clean", duration=50)
+    host.deleteLater()
+    qtbot.wait(20)
+    qtbot.wait(150)  # the dismiss timer would have fired by now
+
+
+def test_window_and_dialogs_fit_a_small_laptop_screen(window, qtbot):
+    """1366x768 laptops and 1920x1080 at 150% scaling (1280x720) are common at front desks."""
+    from motelmg.ui.dialogs.reservation_form import ReservationDialog
+    hint = window.minimumSizeHint().expandedTo(window.minimumSize())
+    assert hint.width() <= 1240 and hint.height() <= 640, hint
+    window.resize(1280, 680)
+    for key in window.pages:
+        window.navigate(key)
+        qtbot.wait(5)
+        assert window.width() <= 1280 and window.height() <= 680, key
+    dialog = ReservationDialog(window, window, mode="new")
+    qtbot.addWidget(dialog)
+    dialog.show()
+    screen = dialog.screen().availableGeometry()
+    assert dialog.height() <= screen.height() and dialog.width() <= screen.width()
+
+
+def test_toolbar_wraps_and_lets_search_grow(qtbot):
+    from PySide6.QtWidgets import QComboBox, QPushButton
+    from motelmg.ui.widgets.common import SearchField, toolbar
+    host, bar = toolbar()
+    qtbot.addWidget(host)
+    search, combo, btn = SearchField(), QComboBox(), QPushButton("Export")
+    for w in (search, combo, btn):
+        bar.addWidget(w)
+    host.resize(1000, 40)
+    host.show()
+    qtbot.wait(5)
+    assert search.width() > search.sizeHint().width()  # spare room goes to the search box
+    assert combo.y() == search.y() == btn.y()
+    narrow = search.minimumWidth() + 20
+    host.resize(narrow, bar.heightForWidth(narrow))
+    qtbot.wait(5)
+    assert btn.y() > search.y()  # wrapped onto another line instead of overlapping

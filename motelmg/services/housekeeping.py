@@ -8,7 +8,7 @@ from typing import Any, Iterable
 
 from motelmg.core import validation as v
 from motelmg.core.dates import parse_optional_date
-from motelmg.core.enums import HKStatus, Priority, TaskStatus, TaskType
+from motelmg.core.enums import HKStatus, Priority, RoomState, TaskStatus, TaskType
 from motelmg.core.errors import ConflictError, NotFoundError, PermissionDenied, ValidationError
 from motelmg.models import HKTask, Room
 
@@ -22,6 +22,7 @@ class HKSummary:
     pending_tasks: int = 0
     in_progress_tasks: int = 0
     awaiting_inspection: int = 0
+    ready: int = 0
     completed_today: int = 0
     unassigned: int = 0
 
@@ -53,11 +54,11 @@ class HousekeepingService:
 
     def summary(self) -> HKSummary:
         s = HKSummary()
-        occupied = self.ctx.repo_rooms.occupied_room_ids()
         for room in self.ctx.repo_rooms.list_rooms():
             setattr(s, room.hk_status, getattr(s, room.hk_status) + 1)
-            if room.hk_status == HKStatus.CLEAN and room.id not in occupied:
-                s.awaiting_inspection += 1
+        # Same rules as the "Awaiting inspection" list and the room board, so the numbers match what staff see.
+        s.awaiting_inspection = len(self._awaiting())
+        s.ready = sum(1 for item in self.ctx.rooms.board() if item.state == RoomState.AVAILABLE)
         today = self._today()
         for task in self.repo.search(today, statuses=["pending", "in_progress"]):
             if task.status == TaskStatus.PENDING:
@@ -72,6 +73,9 @@ class HousekeepingService:
     def awaiting_inspection(self, assigned_to: int | None = None) -> list[HKTask]:
         """Latest completed cleaning task of each vacant room that is clean but not inspected."""
         self.ctx.require("housekeeping.view")
+        return self._awaiting(assigned_to)
+
+    def _awaiting(self, assigned_to: int | None = None) -> list[HKTask]:
         today = self._today()
         latest: dict[int, HKTask] = {}
         for task in self.repo.search(today, statuses=[TaskStatus.COMPLETED, TaskStatus.INSPECTED]):

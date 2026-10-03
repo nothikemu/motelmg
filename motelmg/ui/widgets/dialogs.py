@@ -62,19 +62,20 @@ class BaseDialog(QDialog):
         self.body.setSpacing(14)
         self.banner = Banner("", "error", closable=True)
         self.body.addWidget(self.banner)
-        if scroll:
-            area = QScrollArea()
-            area.setWidgetResizable(True)
-            area.setFrameShape(QFrame.Shape.NoFrame)
-            area.setWidget(body_host)
-            wrapper = QWidget()
-            wrapper.setObjectName("DialogBody")
-            wl = QVBoxLayout(wrapper)
-            wl.setContentsMargins(0, 0, 0, 0)
-            wl.addWidget(area)
-            outer.addWidget(wrapper, 1)
-        else:
-            outer.addWidget(body_host, 1)
+        # The body always sits in a scroll area so a tall dialog still fits a small screen (e.g. a
+        # 1366x768 laptop); on larger screens it opens at its natural size and never scrolls.
+        self._dialog_body = body_host
+        area = QScrollArea()
+        area.setWidgetResizable(True)
+        area.setFrameShape(QFrame.Shape.NoFrame)
+        area.setWidget(body_host)
+        wrapper = QWidget()
+        wrapper.setObjectName("DialogBody")
+        wl = QVBoxLayout(wrapper)
+        wl.setContentsMargins(0, 0, 0, 0)
+        wl.addWidget(area)
+        outer.addWidget(wrapper, 1)
+        self._dialog_header = header
 
         footer = QFrame()
         footer.setObjectName("DialogFooter")
@@ -86,15 +87,43 @@ class BaseDialog(QDialog):
         self.footer.addLayout(self.footer_left)
         self.footer.addStretch(1)
         outer.addWidget(footer)
+        self._dialog_footer = footer
         self.forms: list[FormGrid] = []
         self._scroll = scroll
         self._stretched = False
+        self._fitted = False
 
-    def showEvent(self, event) -> None:  # noqa: N802
-        if self._scroll and not self._stretched:
-            self.body.addStretch(1)  # keep cards at their natural height inside the scroll area
-            self._stretched = True
-        super().showEvent(event)
+    def setVisible(self, visible: bool) -> None:  # noqa: N802
+        if visible and not self._fitted:
+            self._fitted = True
+            if self._scroll and not self._stretched:
+                self.body.addStretch(1)  # keep cards at their natural height inside the scroll area
+                self._stretched = True
+            self._fit_to_screen()
+        super().setVisible(visible)
+
+    def _fit_to_screen(self) -> None:
+        """Open at the requested (or natural) size, grown to fit the content, but never larger than the
+        screen; only then does the body scroll."""
+        chrome = self._dialog_header.sizeHint().height() + self._dialog_footer.sizeHint().height()
+        body_min = self._dialog_body.minimumSizeHint()
+        if self.testAttribute(Qt.WidgetAttribute.WA_Resized):
+            width, height = self.width(), self.height()
+        else:
+            body = self._dialog_body.sizeHint()
+            width = max(self.minimumWidth(), body.width(), self._dialog_header.sizeHint().width(),
+                        self._dialog_footer.sizeHint().width())
+            height = chrome + body.height()
+        width = max(width, body_min.width())
+        height = max(height, chrome + body_min.height())
+        anchor = self.parentWidget().window() if self.parentWidget() else None
+        screen = (anchor.screen() if anchor else None) or QApplication.primaryScreen()
+        if screen is not None:
+            avail = screen.availableGeometry()
+            width = min(width, avail.width() - 24)
+            height = min(height, avail.height() - 24)
+            self.setMinimumWidth(min(self.minimumWidth(), width))
+        self.resize(width, height)
 
     def add_footer_button(self, text: str, callback: Callable | None = None, variant: str | None = None, *,
                           icon_name: str | None = None, default: bool = False, left: bool = False) -> QPushButton:

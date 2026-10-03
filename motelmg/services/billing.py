@@ -102,13 +102,15 @@ class BillingService:
             "amount": amount, "taxable": int(taxable), "parent_id": parent_id, "room_id": room_id,
             "charge_item_id": item_id, "posted_by": self.ctx.user_id, "posted_at": now})
         if taxable:
-            for portion in taxes_for(unit_amount, scope=scope, kind=kind, quantity=1, taxes=self.repo.taxes()):
+            # Percentage taxes are worked out on the line total (2 x $15.00 at 9.5% is $2.85), not rounded
+            # per unit and multiplied, which would over-collect a cent here and there.
+            for portion in taxes_for(amount, scope=scope, kind=kind, quantity=quantity, taxes=self.repo.taxes()):
                 tax = portion.tax
                 label = f"{tax.name} ({format_percent(tax.value)})" if tax.kind == "percent" else tax.name
                 self.repo.insert_charge({
                     "reservation_id": res.id, "kind": ChargeKind.TAX, "description": label,
-                    "service_date": service_date.isoformat(), "quantity": quantity,
-                    "unit_amount": portion.amount, "amount": portion.amount * quantity, "taxable": 0,
+                    "service_date": service_date.isoformat(), "quantity": 1,
+                    "unit_amount": portion.amount, "amount": portion.amount, "taxable": 0,
                     "parent_id": charge_id, "tax_id": tax.id, "posted_by": self.ctx.user_id, "posted_at": now})
         return charge_id
 

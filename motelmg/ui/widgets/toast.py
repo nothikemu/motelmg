@@ -24,6 +24,8 @@ class Toast(QFrame):
         text = QLabel(message)
         text.setWordWrap(True)
         text.setMaximumWidth(360)
+        # Word-wrapped labels otherwise pick a narrow width and break short messages over several lines.
+        text.setMinimumWidth(min(text.fontMetrics().horizontalAdvance(message) + 4, 360))
         layout.addWidget(ic, 0, Qt.AlignmentFlag.AlignTop)
         layout.addWidget(text, 1)
         self.effect = QGraphicsOpacityEffect(self)
@@ -59,7 +61,8 @@ class ToastManager(QObject):
         anim.setEndValue(1.0)
         anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         anim.start()
-        QTimer.singleShot(duration, lambda: self._dismiss(toast))
+        # Bound to the toast so the timer dies with it (e.g. the window closed on sign-out).
+        QTimer.singleShot(duration, toast, lambda: self._dismiss(toast))
 
     def _dismiss(self, toast: Toast) -> None:
         if toast not in self.toasts:
