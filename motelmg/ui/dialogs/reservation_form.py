@@ -159,6 +159,8 @@ class ReservationDialog(BaseDialog):
             self.pay_form = self.register_form(FormGrid(2))
             self.pay_amount = MoneyEdit()
             self.pay_amount.setMaximumWidth(10_000)
+            self._pay_edited = False
+            self.pay_amount.textEdited.connect(lambda *_: setattr(self, "_pay_edited", True))
             methods = [(m.name, m.id) for m in self.ctx.catalog.payment_methods()]
             self.pay_method = combo(methods)
             self.pay_ref = line(placeholder="Last 4 digits / check no.", max_len=60)
@@ -319,7 +321,7 @@ class ReservationDialog(BaseDialog):
         if quote.deposit_suggested and self.mode == "new":
             self._line(r, "Suggested deposit", fmt.money(quote.deposit_suggested))
             r += 1
-        if self.mode == "walk_in" and not self.pay_amount.text():
+        if self.mode == "walk_in" and not self._pay_edited:
             self.pay_amount.set_cents(quote.total)
         if self.in_house:
             self._line(r, "Posted charges are adjusted when you save.", "", "faint")
